@@ -1,0 +1,714 @@
+---
+title: "CGMS_Images"
+output: html_document
+editor_options: 
+  chunk_output_type: console
+---
+## General Import
+```{r setup, include = FALSE}
+setwd("C:/Users/Elizabeth.Gugliotti/Documents/code/TPIO/FlyoutTables")
+library(ggplot2)
+library(scales)
+library(plyr)
+library(dplyr)
+library(tidyr)
+library(lubridate)
+library(forcats)
+library(formattable)
+library(flextable)
+library(kableExtra)
+library(pals)
+library(DT)
+library(viridis)
+library(RColorBrewer)
+
+pdf(NULL)
+
+#This sources the data from the data cleanup process including grabbing all the data from the EORES web services
+source("C:/Users/Elizabeth.Gugliotti/Documents/code/TPIO/FlyoutTables/FlyoutDataCleanup.R")
+
+#This calls all the functions that actually create the flyout tables
+source("C:/Users/Elizabeth.Gugliotti/Documents/code/TPIO/FlyoutTables/by_sensor.R")
+
+#This sources all the colormatrix functions to apply the different color schemes to the tables
+source("C:/Users/Elizabeth.Gugliotti/Documents/code/TPIO/FlyoutTables/colormatrix.R")
+
+webshot::install_phantomjs()
+```
+
+## Sensor Index
+```{r}
+# Need to create a list of sensors to index the flyout tables
+# The index is in a specific order shown in the mutate(Sensors = factor(Sensors...)) below
+sensors<- flyout_clean %>%
+  mutate(platform_name = str_replace(platform_name, " - Spacecraft", "")) %>%
+  filter(network_acronym == "CGMS") %>%
+  filter(grepl("CGMS", platform_deployment_plans)) %>%
+  mutate(platform_deployment_plans = sub(".*CGMS Information - ","",platform_deployment_plans)) %>%
+  separate(platform_deployment_plans, sep = "[\\|]", c("dep_one","dep_two","dep_three","dep_four")) %>%
+  pivot_longer(cols = starts_with("dep_"), names_to = "extra", values_to = "deployment_plans") %>% 
+  select(-extra) %>% 
+  separate(deployment_plans, sep = ":", c("type", "value")) %>% 
+  filter(type == "Sensors") %>%
+  mutate(value = trimws(value, "l")) %>%
+  pivot_wider(names_from = "type", values_from = "value") %>%
+  separate_rows(Sensors, sep = "; ") %>%
+  select(Sensors) %>%
+  filter(Sensors != "") %>%
+  distinct(Sensors) %>% 
+  mutate(Sensors = factor(Sensors, levels = c("Microwave Sounder", "Hyperspectral Infrared Sounder", 
+                                              "Radio Occultation", "Multi-purpose Meteorological Imager GEO", 
+                                              "Multi-purpose Meteorological Imager LEO", "Multi-viewing, Multi-channel, Multi-polarisation imager", 
+                                              "Lightning Mapper", "Broadband Short/Long Wave Radiometer", 
+                                              "Visible/UV Radiometer", "UV Limb Spectrometer", 
+                                              "SWIR Imaging Spectrometer", "Precipitation Radar", 
+                                              "Microwave Imager", "Narrow Band Visible & Near Infrared Imager", 
+                                              "Radar Altimetry", "Scatterometer", 
+                                              "Sub-Millimeter Ice Cloud Imager", "Synthetic Aperture Radar", 
+                                              "High Resolution Optical Imager", "Coronograph", 
+                                              "EUV Imager", "X-ray Spectrograph", 
+                                              "Energetic Particle Sensor LEO & L1", 
+                                              "Energetic Particle Sensor GEO - Low energy electrons and protons",
+                                              "Energetic Particle Sensor GEO - High energy electrons and protons",
+                                              "Energetic Particle Sensor GEO - Very high energy protons",
+                                              "Energetic Particle Sensor GEO - Energetic heavy ions",
+                                              "Magnetometer", "Plasma Analyzer"))) %>%
+  arrange(Sensors) %>% 
+  as.data.frame()
+```
+
+## Flyout Tables
+There are a couple different ways that the data is sorted depending on the preferred order/groupings of sensors in the flout tables.
+There are also a couple different color schemes (colormatrix) depending on the sensors and the preferred color groupings by CGMS. There was some specificity involved that made it so certain tables had to have a colormatrix and sorting specifically for them.
+
+```{r}
+#Microwave Sounder
+#use by_sensor function to grab the sensors identified by the index or sensors created above
+dat_fly<-by_sensor_sort2(flyout_clean, sensors[1,1])
+x<- dat_fly %>%
+    flextable()%>%
+    color(j = 2:ncol(dat_fly), color = colormatrix2(dat_fly)) %>%
+    bg(j = 2:ncol(dat_fly), bg = colormatrix2(dat_fly)) %>%
+    width(j = 1, width = 7) %>%
+    width(j = 2:ncol(dat_fly), width = 5) %>%
+    align(j= 2:ncol(dat_fly), align = "center", part = "header") %>%
+    bold(part = "header") %>%
+    fontsize(size = 11, j = 1) %>%
+    fontsize(size = 5, j = 2:ncol(dat_fly)) %>%
+    padding(padding.top = 2, part = "all") %>%
+    padding(padding.bottom = 2, part = "all") %>%
+    bold(j = 1)
+file<-paste0("C:/Users/Elizabeth.Gugliotti/Documents/code/TPIO/FlyoutTables/", sensors[1,1],".png")
+save_as_image(x, path = file)
+```
+
+
+```{r}
+#Hyperspectral Infrared Sounder; Simple colormatrix
+dat_fly<-by_sensor_sort2(flyout_clean, sensors[2,1])
+x<-dat_fly %>%
+    flextable()%>%
+    color(j = 2:ncol(dat_fly), color = colormatrix(dat_fly)) %>%
+    bg(j = 2:ncol(dat_fly), bg = colormatrix(dat_fly)) %>%
+    align(j=2:ncol(dat_fly), align = "center", part = "header") %>%
+    width(j = 1, width = 7) %>%
+    width(j = 2:ncol(dat_fly), width = 5) %>%
+#    autofit() %>%
+    align(j= 2:ncol(dat_fly), align = "center", part = "header") %>%
+    bold(part = "header") %>%
+    fontsize(size = 11, j = 1) %>%
+    fontsize(size = 5, j = 2:ncol(dat_fly)) %>%
+    padding(padding.top = 2, part = "all") %>%
+    padding(padding.bottom = 2, part = "all") %>%
+    bold(j = 1)
+file<-paste0("C:/Users/Elizabeth.Gugliotti/Documents/code/TPIO/FlyoutTables/", sensors[2,1],".png")
+save_as_image(x, path = file)
+```
+
+
+```{r}
+dat_fly<-by_sensor_ss(flyout_clean, sensors[3,1])
+x<-dat_fly %>%
+    flextable()%>%
+    color(j = 2:ncol(dat_fly), color = colormatrix_ro(dat_fly)) %>%
+    bg(j = 2:ncol(dat_fly), bg = colormatrix_ro(dat_fly)) %>%
+    width(j = 1, width = 7) %>%
+    width(j = 2:ncol(dat_fly), width = 5) %>%
+    align(j= 2:ncol(dat_fly), align = "center", part = "header") %>%
+    bold(part = "header") %>%
+    fontsize(size = 11, j = 1) %>%
+    fontsize(size = 5, j = 2:ncol(dat_fly)) %>%
+    padding(padding.top = 2, part = "all") %>%
+    padding(padding.bottom = 2, part = "all") %>%
+    bold(j = 1)
+file<-paste0("C:/Users/Elizabeth.Gugliotti/Documents/code/TPIO/FlyoutTables/", sensors[3,1],".png")
+save_as_image(x, path = file)
+```
+
+
+```{r}
+dat_fly<-by_sensor_names(flyout_clean, sensors[4,1])
+x<-dat_fly %>%
+    flextable()%>%
+    color(j = 2:ncol(dat_fly), color = colormatrix4(dat_fly)) %>%
+    bg(j = 2:ncol(dat_fly), bg = colormatrix4(dat_fly)) %>%
+    align(j=2:ncol(dat_fly), align = "center", part = "header") %>%
+    width(j = 1, width = 7) %>%
+    width(j = 2:ncol(dat_fly), width = 5) %>%
+    align(j= 2:ncol(dat_fly), align = "center", part = "header") %>%
+    bold(part = "header") %>%
+    fontsize(size = 11, j = 1) %>%
+    fontsize(size = 5, j = 2:ncol(dat_fly)) %>%
+    padding(padding.top = 2, part = "all") %>%
+    padding(padding.bottom = 2, part = "all") %>%
+    bold(j = 1)
+file<-paste0("C:/Users/Elizabeth.Gugliotti/Documents/code/TPIO/FlyoutTables/", sensors[4,1],".png")
+save_as_image(x,path = file)
+```
+
+
+```{r}
+dat_fly<-by_sensor_sort2(flyout_clean, sensors[5,1])
+x<-dat_fly %>%
+    flextable()%>%
+    color(j = 2:ncol(dat_fly), color = colormatrix2(dat_fly)) %>%
+    bg(j = 2:ncol(dat_fly), bg = colormatrix2(dat_fly)) %>%
+    align(j=2:ncol(dat_fly), align = "center", part = "header") %>%
+    width(j = 1, width = 7) %>%
+    width(j = 2:ncol(dat_fly), width = 5) %>%
+    align(j= 2:ncol(dat_fly), align = "center", part = "header") %>%
+    bold(part = "header") %>%
+    fontsize(size = 11, j = 1) %>%
+    fontsize(size = 5, j = 2:ncol(dat_fly)) %>%
+    padding(padding.top = 2, part = "all") %>%
+    padding(padding.bottom = 2, part = "all") %>%
+    bold(j = 1)
+file<-paste0("C:/Users/Elizabeth.Gugliotti/Documents/code/TPIO/FlyoutTables/", sensors[5,1],".png")
+save_as_image(x, path = file)
+```
+
+
+```{r}
+dat_fly<-by_sensor(flyout_clean, sensors[6,1])
+x<-dat_fly %>%
+    flextable()%>%
+    color(j = 2:ncol(dat_fly), color = colormatrix2(dat_fly)) %>%
+    bg(j = 2:ncol(dat_fly), bg = colormatrix2(dat_fly)) %>%
+    align(j=2:ncol(dat_fly), align = "center", part = "header") %>%
+    width(j = 1, width = 7) %>%
+    width(j = 2:ncol(dat_fly), width = 5) %>%
+    align(j= 2:ncol(dat_fly), align = "center", part = "header") %>%
+    bold(part = "header") %>%
+    fontsize(size = 11, j = 1) %>%
+    fontsize(size = 5, j = 2:ncol(dat_fly)) %>%
+    padding(padding.top = 2, part = "all") %>%
+    padding(padding.bottom = 2, part = "all") %>%
+    bold(j = 1)
+file<-paste0("C:/Users/Elizabeth.Gugliotti/Documents/code/TPIO/FlyoutTables/", sensors[6,1],".png")
+save_as_image(x, path = file)
+```
+
+
+```{r}
+dat_fly<-by_sensor(flyout_clean, sensors[7,1])
+x<-dat_fly %>%
+    flextable()%>%
+    color(j = 2:ncol(dat_fly), color = colormatrix3(dat_fly)) %>%
+    bg(j = 2:ncol(dat_fly), bg = colormatrix3(dat_fly)) %>%
+    align(j=2:ncol(dat_fly), align = "center", part = "header") %>%
+    width(j = 1, width = 7) %>%
+    width(j = 2:ncol(dat_fly), width = 5) %>%
+    align(j= 2:ncol(dat_fly), align = "center", part = "header") %>%
+    bold(part = "header") %>%
+    fontsize(size = 11, j = 1) %>%
+    fontsize(size = 5, j = 2:ncol(dat_fly)) %>%
+    padding(padding.top = 2, part = "all") %>%
+    padding(padding.bottom = 2, part = "all") %>%
+    bold(j = 1)
+file<-paste0("C:/Users/Elizabeth.Gugliotti/Documents/code/TPIO/FlyoutTables/", sensors[7,1],".png")
+save_as_image(x, path = file)
+```
+
+
+```{r}
+dat_fly<-by_sensor_sort2(flyout_clean, sensors[8,1])
+x<-dat_fly %>%
+    flextable()%>%
+    color(j = 2:ncol(dat_fly), color = colormatrix2(dat_fly)) %>%
+    bg(j = 2:ncol(dat_fly), bg = colormatrix2(dat_fly)) %>%
+    align(j=2:ncol(dat_fly), align = "center", part = "header") %>%
+    width(j = 1, width = 7) %>%
+    width(j = 2:ncol(dat_fly), width = 5) %>%
+    align(j= 2:ncol(dat_fly), align = "center", part = "header") %>%
+    bold(part = "header") %>%
+    fontsize(size = 11, j = 1) %>%
+    fontsize(size = 5, j = 2:ncol(dat_fly)) %>%
+    padding(padding.top = 2, part = "all") %>%
+    padding(padding.bottom = 2, part = "all") %>%
+    bold(j = 1)
+file<-paste0("C:/Users/Elizabeth.Gugliotti/Documents/code/TPIO/FlyoutTables/Broadband Short_Long Wave Radiometer.png")
+save_as_image(x, path = file)
+```
+
+
+```{r}
+dat_fly<-by_sensor_sort2(flyout_clean, sensors[9,1])
+x<-dat_fly %>%
+    flextable()%>%
+    color(j = 2:ncol(dat_fly), color = colormatrix(dat_fly)) %>%
+    bg(j = 2:ncol(dat_fly), bg = colormatrix(dat_fly)) %>%
+    align(j=2:ncol(dat_fly), align = "center", part = "header") %>%
+    width(j = 1, width = 7) %>%
+    width(j = 2:ncol(dat_fly), width = 5) %>%
+    align(j= 2:ncol(dat_fly), align = "center", part = "header") %>%
+    bold(part = "header") %>%
+    fontsize(size = 11, j = 1) %>%
+    fontsize(size = 5, j = 2:ncol(dat_fly)) %>%
+    padding(padding.top = 2, part = "all") %>%
+    padding(padding.bottom = 2, part = "all") %>%
+    bold(j = 1)
+file<-paste0("C:/Users/Elizabeth.Gugliotti/Documents/code/TPIO/FlyoutTables/Visible_UV Radiometer.png")
+save_as_image(x, path = file)
+```
+
+
+```{r}
+dat_fly<-by_sensor_sort2(flyout_clean, sensors[10,1])
+x<-dat_fly %>%
+    flextable()%>%
+    color(j = 2:ncol(dat_fly), color = colormatrix2(dat_fly)) %>%
+    bg(j = 2:ncol(dat_fly), bg = colormatrix2(dat_fly)) %>%
+    align(j=2:ncol(dat_fly), align = "center", part = "header") %>%
+    width(j = 1, width = 7) %>%
+    width(j = 2:ncol(dat_fly), width = 5) %>%
+    align(j= 2:ncol(dat_fly), align = "center", part = "header") %>%
+    bold(part = "header") %>%
+    fontsize(size = 11, j = 1) %>%
+    fontsize(size = 5, j = 2:ncol(dat_fly)) %>%
+    padding(padding.top = 2, part = "all") %>%
+    padding(padding.bottom = 2, part = "all") %>%
+    bold(j = 1)
+file<-paste0("C:/Users/Elizabeth.Gugliotti/Documents/code/TPIO/FlyoutTables/", sensors[10,1],".png")
+save_as_image(x, path = file)
+```
+
+
+
+```{r}
+#would need to have the EOL for OCO-2 officially changed to include
+dat_fly<-by_sensor_sort2(flyout_clean, sensors[11,1])
+x<-dat_fly %>%
+    flextable()%>%
+    color(j = 2:ncol(dat_fly), color = colormatrix2(dat_fly)) %>%
+    bg(j = 2:ncol(dat_fly), bg = colormatrix2(dat_fly)) %>%
+    align(j=2:ncol(dat_fly), align = "center", part = "header") %>%
+    width(j = 1, width = 7) %>%
+    width(j = 2:ncol(dat_fly), width = 5) %>%
+    align(j= 2:ncol(dat_fly), align = "center", part = "header") %>%
+    bold(part = "header") %>%
+    fontsize(size = 11, j = 1) %>%
+    fontsize(size = 5, j = 2:ncol(dat_fly)) %>%
+    padding(padding.top = 2, part = "all") %>%
+    padding(padding.bottom = 2, part = "all") %>%
+    bold(j = 1)
+file<-paste0("C:/Users/Elizabeth.Gugliotti/Documents/code/TPIO/FlyoutTables/", sensors[11,1],".png")
+save_as_image(x, path = file)
+```
+
+
+
+```{r}
+dat_fly<-by_sensor_sort2(flyout_clean, sensors[12,1])
+x<-dat_fly %>%
+    flextable()%>%
+    color(j = 2:ncol(dat_fly), color = colormatrix2(dat_fly)) %>%
+    bg(j = 2:ncol(dat_fly), bg = colormatrix2(dat_fly)) %>%
+    align(j=2:ncol(dat_fly), align = "center", part = "header") %>%
+    width(j = 1, width = 7) %>%
+    width(j = 2:ncol(dat_fly), width = 5) %>%
+    align(j= 2:ncol(dat_fly), align = "center", part = "header") %>%
+    bold(part = "header") %>%
+    fontsize(size = 11, j = 1) %>%
+    fontsize(size = 5, j = 2:ncol(dat_fly)) %>%
+    padding(padding.top = 2, part = "all") %>%
+    padding(padding.bottom = 2, part = "all") %>%
+    bold(j = 1)
+file<-paste0("C:/Users/Elizabeth.Gugliotti/Documents/code/TPIO/FlyoutTables/", sensors[12,1],".png")
+save_as_image(x, path = file)
+```
+
+
+
+```{r}
+dat_fly<-by_sensor_sort2(flyout_clean, sensors[13,1])
+x<-dat_fly %>%
+    flextable()%>%
+    color(j = 2:ncol(dat_fly), color = colormatrix2(dat_fly)) %>%
+    bg(j = 2:ncol(dat_fly), bg = colormatrix2(dat_fly)) %>%
+    align(j=2:ncol(dat_fly), align = "center", part = "header") %>%
+    width(j = 1, width = 7) %>%
+    width(j = 2:ncol(dat_fly), width = 5) %>%
+    align(j= 2:ncol(dat_fly), align = "center", part = "header") %>%
+    bold(part = "header") %>%
+    fontsize(size = 11, j = 1) %>%
+    fontsize(size = 5, j = 2:ncol(dat_fly)) %>%
+    padding(padding.top = 2, part = "all") %>%
+    padding(padding.bottom = 2, part = "all") %>%
+    bold(j = 1)
+file<-paste0("C:/Users/Elizabeth.Gugliotti/Documents/code/TPIO/FlyoutTables/", sensors[13,1],".png")
+save_as_image(x, path = file)
+```
+
+
+```{r}
+dat_fly<-by_sensor_sort3(flyout_clean, sensors[14,1])
+x<-dat_fly %>%
+    flextable()%>%
+    color(j = 2:ncol(dat_fly), color = colormatrix2(dat_fly)) %>%
+    bg(j = 2:ncol(dat_fly), bg = colormatrix2(dat_fly)) %>%
+    align(j=2:ncol(dat_fly), align = "center", part = "header") %>%
+    width(j = 1, width = 7) %>%
+    width(j = 2:ncol(dat_fly), width = 5) %>%
+    align(j= 2:ncol(dat_fly), align = "center", part = "header") %>%
+    bold(part = "header") %>%
+    fontsize(size = 11, j = 1) %>%
+    fontsize(size = 5, j = 2:ncol(dat_fly)) %>%
+    padding(padding.top = 2, part = "all") %>%
+    padding(padding.bottom = 2, part = "all") %>%
+    bold(j = 1)
+file<-paste0("C:/Users/Elizabeth.Gugliotti/Documents/code/TPIO/FlyoutTables/", sensors[14,1],".png")
+save_as_image(x, path = file)
+```
+
+
+
+```{r}
+dat_fly<-by_sensor(flyout_clean, sensors[15,1])
+x<-dat_fly %>%
+    flextable()%>%
+    color(j = 2:ncol(dat_fly), color = colormatrix2(dat_fly)) %>%
+    bg(j = 2:ncol(dat_fly), bg = colormatrix2(dat_fly)) %>%
+    align(j=2:ncol(dat_fly), align = "center", part = "header") %>%
+    width(j = 1, width = 7) %>%
+    width(j = 2:ncol(dat_fly), width = 5) %>%
+    align(j= 2:ncol(dat_fly), align = "center", part = "header") %>%
+    bold(part = "header") %>%
+    fontsize(size = 11, j = 1) %>%
+    fontsize(size = 5, j = 2:ncol(dat_fly)) %>%
+    padding(padding.top = 2, part = "all") %>%
+    padding(padding.bottom = 2, part = "all") %>%
+    bold(j = 1)
+file<-paste0("C:/Users/Elizabeth.Gugliotti/Documents/code/TPIO/FlyoutTables/", sensors[15,1],".png")
+save_as_image(x, path = file)
+```
+
+
+
+```{r}
+dat_fly<-by_sensor_sort2(flyout_clean, sensors[16,1])
+x<-dat_fly %>%
+    flextable()%>%
+    color(j = 2:ncol(dat_fly), color = colormatrix2(dat_fly)) %>%
+    bg(j = 2:ncol(dat_fly), bg = colormatrix2(dat_fly)) %>%
+    align(j=2:ncol(dat_fly), align = "center", part = "header") %>%
+    width(j = 1, width = 7) %>%
+    width(j = 2:ncol(dat_fly), width = 5) %>%
+    align(j= 2:ncol(dat_fly), align = "center", part = "header") %>%
+    bold(part = "header") %>%
+    fontsize(size = 11, j = 1) %>%
+    fontsize(size = 5, j = 2:ncol(dat_fly)) %>%
+    padding(padding.top = 2, part = "all") %>%
+    padding(padding.bottom = 2, part = "all") %>%
+    bold(j = 1)
+file<-paste0("C:/Users/Elizabeth.Gugliotti/Documents/code/TPIO/FlyoutTables/", sensors[16,1],".png")
+save_as_image(x, path = file)
+```
+
+
+
+```{r} 
+dat_fly<-by_sensor(flyout_clean, sensors[17,1])
+dat_fly$`2022`<-NA
+dat_fly$`2023`<-NA
+dat_fly$`2024`<-NA
+dat_fly<- dat_fly %>% select(Platform, `2022`, `2023`, `2024`, everything())
+x<-dat_fly %>%
+    flextable()%>%
+    color(j = 2:ncol(dat_fly), color = colormatrix2(dat_fly)) %>%
+    bg(j = 2:ncol(dat_fly), bg = colormatrix2(dat_fly)) %>%
+    align(j=2:ncol(dat_fly), align = "center", part = "header") %>%
+    width(j = 1, width = 7) %>%
+    width(j = 2:ncol(dat_fly), width = 5) %>%
+    align(j= 2:ncol(dat_fly), align = "center", part = "header") %>%
+    bold(part = "header") %>%
+    fontsize(size = 11, j = 1) %>%
+    fontsize(size = 5, j = 2:ncol(dat_fly)) %>%
+    padding(padding.top = 2, part = "all") %>%
+    padding(padding.bottom = 2, part = "all") %>%
+    bold(j = 1)
+file<-paste0("C:/Users/Elizabeth.Gugliotti/Documents/code/TPIO/FlyoutTables/", sensors[17,1],".png")
+save_as_image(x, path = file)
+```
+
+
+
+```{r}
+dat_fly<-by_sensor(flyout_clean, sensors[18,1])
+x<-dat_fly %>%
+    flextable()%>%
+    color(j = 2:ncol(dat_fly), color = colormatrix2(dat_fly)) %>%
+    bg(j = 2:ncol(dat_fly), bg = colormatrix2(dat_fly)) %>%
+    align(j=2:ncol(dat_fly), align = "center", part = "header") %>%
+    width(j = 1, width = 7) %>%
+    width(j = 2:ncol(dat_fly), width = 5) %>%
+    align(j= 2:ncol(dat_fly), align = "center", part = "header") %>%
+    bold(part = "header") %>%
+    fontsize(size = 11, j = 1) %>%
+    fontsize(size = 5, j = 2:ncol(dat_fly)) %>%
+    padding(padding.top = 2, part = "all") %>%
+    padding(padding.bottom = 2, part = "all") %>%
+    bold(j = 1)
+file<-paste0("C:/Users/Elizabeth.Gugliotti/Documents/code/TPIO/FlyoutTables/", sensors[18,1],".png")
+save_as_image(x, path = file)
+```
+
+
+```{r}
+dat_fly<-by_sensor(flyout_clean, sensors[19,1])
+x<-dat_fly %>%
+    flextable()%>%
+    color(j = 2:ncol(dat_fly), color = colormatrix2(dat_fly)) %>%
+    bg(j = 2:ncol(dat_fly), bg = colormatrix2(dat_fly)) %>%
+    align(j=2:ncol(dat_fly), align = "center", part = "header") %>%
+    width(j = 1, width = 7) %>%
+    width(j = 2:ncol(dat_fly), width = 5) %>%
+    align(j= 2:ncol(dat_fly), align = "center", part = "header") %>%
+    bold(part = "header") %>%
+    fontsize(size = 11, j = 1) %>%
+    fontsize(size = 5, j = 2:ncol(dat_fly)) %>%
+    padding(padding.top = 2, part = "all") %>%
+    padding(padding.bottom = 2, part = "all") %>%
+    bold(j = 1)
+file<-paste0("C:/Users/Elizabeth.Gugliotti/Documents/code/TPIO/FlyoutTables/", sensors[19,1],".png")
+save_as_image(x, path = file)
+```
+
+
+
+```{r}
+dat_fly<-by_sensor(flyout_clean, sensors[20,1])
+x<-dat_fly %>%
+    flextable()%>%
+    color(j = 2:ncol(dat_fly), color = colormatrix2(dat_fly)) %>%
+    bg(j = 2:ncol(dat_fly), bg = colormatrix2(dat_fly)) %>%
+    align(j=2:ncol(dat_fly), align = "center", part = "header") %>%
+    width(j = 1, width = 7) %>%
+    width(j = 2:ncol(dat_fly), width = 5) %>%
+    align(j= 2:ncol(dat_fly), align = "center", part = "header") %>%
+    bold(part = "header") %>%
+    fontsize(size = 11, j = 1) %>%
+    fontsize(size = 5, j = 2:ncol(dat_fly)) %>%
+    padding(padding.top = 2, part = "all") %>%
+    padding(padding.bottom = 2, part = "all") %>%
+    bold(j = 1)
+file<-paste0("C:/Users/Elizabeth.Gugliotti/Documents/code/TPIO/FlyoutTables/", sensors[20,1],".png")
+save_as_image(x, path = file)
+```
+
+
+
+```{r}
+dat_fly<-by_sensor_sort2(flyout_clean, sensors[21,1])
+x<-dat_fly %>%
+    flextable()%>%
+    color(j = 2:ncol(dat_fly), color = colormatrix2(dat_fly)) %>%
+    bg(j = 2:ncol(dat_fly), bg = colormatrix2(dat_fly)) %>%
+    align(j=2:ncol(dat_fly), align = "center", part = "header") %>%
+    width(j = 1, width = 7) %>%
+    width(j = 2:ncol(dat_fly), width = 5) %>%
+    align(j= 2:ncol(dat_fly), align = "center", part = "header") %>%
+    bold(part = "header") %>%
+    fontsize(size = 11, j = 1) %>%
+    fontsize(size = 5, j = 2:ncol(dat_fly)) %>%
+    padding(padding.top = 2, part = "all") %>%
+    padding(padding.bottom = 2, part = "all") %>%
+    bold(j = 1)
+file<-paste0("C:/Users/Elizabeth.Gugliotti/Documents/code/TPIO/FlyoutTables/", sensors[21,1],".png")
+save_as_image(x, path = file)
+```
+
+
+```{r}
+dat_fly<-by_sensor_sort2(flyout_clean, sensors[22,1])
+x<-dat_fly %>%
+    flextable()%>%
+    color(j = 2:ncol(dat_fly), color = colormatrix_xray(dat_fly)) %>%
+    bg(j = 2:ncol(dat_fly), bg = colormatrix_xray(dat_fly)) %>%
+    align(j=2:ncol(dat_fly), align = "center", part = "header") %>%
+    width(j = 1, width = 7) %>%
+    width(j = 2:ncol(dat_fly), width = 5) %>%
+    align(j= 2:ncol(dat_fly), align = "center", part = "header") %>%
+    bold(part = "header") %>%
+    fontsize(size = 11, j = 1) %>%
+    fontsize(size = 5, j = 2:ncol(dat_fly)) %>%
+    padding(padding.top = 2, part = "all") %>%
+    padding(padding.bottom = 2, part = "all") %>%
+    bold(j = 1)
+file<-paste0("C:/Users/Elizabeth.Gugliotti/Documents/code/TPIO/FlyoutTables/", sensors[22,1],".png")
+save_as_image(x, path = file)
+```
+
+
+```{r}
+#Energetic Particle Sensor LEO & L1
+dat_fly<-by_sensor_sort2(flyout_clean, sensors[23,1])
+x<-dat_fly %>%
+  flextable() %>%
+  color(j = 2:ncol(dat_fly), color = colormatrix_energetic_particle_LEO(dat_fly)) %>%
+  bg(j = 2:ncol(dat_fly), bg = colormatrix_energetic_particle_LEO(dat_fly)) %>%
+  align(j=2:ncol(dat_fly), align = "center", part = "header") %>%
+    width(j = 1, width = 7) %>%
+    width(j = 2:ncol(dat_fly), width = 5) %>%
+    align(j= 2:ncol(dat_fly), align = "center", part = "header") %>%
+    bold(part = "header") %>%
+    fontsize(size = 11, j = 1) %>%
+    fontsize(size = 5, j = 2:ncol(dat_fly)) %>%
+    padding(padding.top = 2, part = "all") %>%
+    padding(padding.bottom = 2, part = "all") %>%
+    bold(j = 1)
+file<-paste0("C:/Users/Elizabeth.Gugliotti/Documents/code/TPIO/FlyoutTables/", sensors[23,1],".png")
+save_as_image(x, path = file)
+```
+
+
+```{r}
+#Energetic Particle Sensor GEO - Low energy electrons and protons
+dat_fly<-by_sensor_names(flyout_clean, sensors[24,1])
+x<-dat_fly %>%
+  flextable() %>%
+  color(j = 2:ncol(dat_fly), color = colormatrix_energetic_particle_GEO_low(dat_fly)) %>%
+  bg(j = 2:ncol(dat_fly), bg = colormatrix_energetic_particle_GEO_low(dat_fly)) %>%
+  align(j=2:ncol(dat_fly), align = "center", part = "header") %>%
+    width(j = 1, width = 7) %>%
+    width(j = 2:ncol(dat_fly), width = 5) %>%
+    align(j= 2:ncol(dat_fly), align = "center", part = "header") %>%
+    bold(part = "header") %>%
+    fontsize(size = 11, j = 1) %>%
+    fontsize(size = 5, j = 2:ncol(dat_fly)) %>%
+    padding(padding.top = 2, part = "all") %>%
+    padding(padding.bottom = 2, part = "all") %>%
+    bold(j = 1)
+file<-paste0("C:/Users/Elizabeth.Gugliotti/Documents/code/TPIO/FlyoutTables/", sensors[24,1],".png")
+save_as_image(x, path = file)
+```
+
+
+```{r}
+#Energetic Particle Sensor GEO - High energy electrons and protons
+dat_fly<-by_sensor_names(flyout_clean, sensors[25,1])
+x<-dat_fly %>%
+  flextable() %>%
+  color(j = 2:ncol(dat_fly), color = colormatrix_energetic_particle_GEO_high(dat_fly)) %>%
+  bg(j = 2:ncol(dat_fly), bg = colormatrix_energetic_particle_GEO_high(dat_fly)) %>%
+  align(j=2:ncol(dat_fly), align = "center", part = "header") %>%
+    width(j = 1, width = 7) %>%
+    width(j = 2:ncol(dat_fly), width = 5) %>%
+    align(j= 2:ncol(dat_fly), align = "center", part = "header") %>%
+    bold(part = "header") %>%
+    fontsize(size = 11, j = 1) %>%
+    fontsize(size = 5, j = 2:ncol(dat_fly)) %>%
+    padding(padding.top = 2, part = "all") %>%
+    padding(padding.bottom = 2, part = "all") %>%
+    bold(j = 1)
+file<-paste0("C:/Users/Elizabeth.Gugliotti/Documents/code/TPIO/FlyoutTables/", sensors[25,1],".png")
+save_as_image(x, path = file)
+```
+
+
+```{r}
+#Energetic Particle Sensor GEO - Very high energy protons
+dat_fly<-by_sensor(flyout_clean, sensors[26,1])
+x<-dat_fly %>%
+  flextable() %>%
+  color(j = 2:ncol(dat_fly), color = colormatrix_energetic_particle_GEO_high(dat_fly)) %>%
+  bg(j = 2:ncol(dat_fly), bg = colormatrix_energetic_particle_GEO_high(dat_fly)) %>%
+  align(j=2:ncol(dat_fly), align = "center", part = "header") %>%
+    width(j = 1, width = 7) %>%
+    width(j = 2:ncol(dat_fly), width = 5) %>%
+    align(j= 2:ncol(dat_fly), align = "center", part = "header") %>%
+    bold(part = "header") %>%
+    fontsize(size = 11, j = 1) %>%
+    fontsize(size = 5, j = 2:ncol(dat_fly)) %>%
+    padding(padding.top = 2, part = "all") %>%
+    padding(padding.bottom = 2, part = "all") %>%
+    bold(j = 1)
+file<-paste0("C:/Users/Elizabeth.Gugliotti/Documents/code/TPIO/FlyoutTables/", sensors[26,1],".png")
+save_as_image(x, path = file)
+```
+
+
+```{r}
+#Energetic Particle Sensor GEO - Energetic heavy ions
+dat_fly<-by_sensor(flyout_clean, sensors[27,1])
+x<-dat_fly %>%
+  flextable() %>%
+  color(j = 2:ncol(dat_fly), color = colormatrix_energetic_particle_GEO_high(dat_fly)) %>%
+  bg(j = 2:ncol(dat_fly), bg = colormatrix_energetic_particle_GEO_high(dat_fly)) %>%
+  align(j=2:ncol(dat_fly), align = "center", part = "header") %>%
+    width(j = 1, width = 7) %>%
+    width(j = 2:ncol(dat_fly), width = 5) %>%
+    align(j= 2:ncol(dat_fly), align = "center", part = "header") %>%
+    bold(part = "header") %>%
+    fontsize(size = 11, j = 1) %>%
+    fontsize(size = 5, j = 2:ncol(dat_fly)) %>%
+    padding(padding.top = 2, part = "all") %>%
+    padding(padding.bottom = 2, part = "all") %>%
+    bold(j = 1)
+file<-paste0("C:/Users/Elizabeth.Gugliotti/Documents/code/TPIO/FlyoutTables/", sensors[27,1],".png")
+save_as_image(x, path = file)
+```
+
+
+```{r}
+#Magnetometer
+dat_fly<-by_sensor(flyout_clean, sensors[28,1])
+x<-dat_fly %>%
+    flextable()%>%
+    color(j = 2:ncol(dat_fly), color = colormatrix_mag(dat_fly)) %>%
+    bg(j = 2:ncol(dat_fly), bg = colormatrix_mag(dat_fly)) %>%
+    align(j=2:ncol(dat_fly), align = "center", part = "header") %>%
+    width(j = 1, width = 7) %>%
+    width(j = 2:ncol(dat_fly), width = 5) %>%
+    align(j= 2:ncol(dat_fly), align = "center", part = "header") %>%
+    bold(part = "header") %>%
+    fontsize(size = 11, j = 1) %>%
+    fontsize(size = 5, j = 2:ncol(dat_fly)) %>%
+    padding(padding.top = 2, part = "all") %>%
+    padding(padding.bottom = 2, part = "all") %>%
+    bold(j = 1)
+file<-paste0("C:/Users/Elizabeth.Gugliotti/Documents/code/TPIO/FlyoutTables/", sensors[28,1],".png")
+save_as_image(x, path = file)
+```
+
+
+
+```{r}
+#Plasma Analyzer
+dat_fly<-by_sensor(flyout_clean, sensors[29,1])
+x<-dat_fly %>%
+    flextable()%>%
+    color(j = 2:ncol(dat_fly), color = colormatrix2(dat_fly)) %>%
+    bg(j = 2:ncol(dat_fly), bg = colormatrix2(dat_fly)) %>%
+    align(j=2:ncol(dat_fly), align = "center", part = "header") %>%
+    width(j = 1, width = 7) %>%
+    width(j = 2:ncol(dat_fly), width = 5) %>%
+    align(j= 2:ncol(dat_fly), align = "center", part = "header") %>%
+    bold(part = "header") %>%
+    fontsize(size = 11, j = 1) %>%
+    fontsize(size = 5, j = 2:ncol(dat_fly)) %>%
+    padding(padding.top = 2, part = "all") %>%
+    padding(padding.bottom = 2, part = "all") %>%
+    bold(j = 1)
+file<-paste0("C:/Users/Elizabeth.Gugliotti/Documents/code/TPIO/FlyoutTables/", sensors[29,1],".png")
+save_as_image(x, path = file)
+```
